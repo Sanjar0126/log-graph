@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Real-Time Charts</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 2rem;
+    }
+    canvas {
+      width: 100%;
+      height: 400px;
+    }
+    #charts {
+      display: flex;
+      flex-direction: column;
+      gap: 30px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Real-Time Charts</h2>
+  <label>
+    <input type="checkbox" id="overlap-toggle" />
+    Overlap Charts
+  </label>
+  <div id="charts"></div>
+
+  <script>
+    const charts = {}; // name -> { data, color, xAxis, yAxis, instance }
+    const chartInstances = [];
+    const maxPoints = 20;
+    const container = document.getElementById("charts");
+    const overlapToggle = document.getElementById("overlap-toggle");
+
+    function renderCharts() {
+      // Clear existing charts
+      container.innerHTML = "";
+      chartInstances.forEach((chart) => chart.destroy());
+      chartInstances.length = 0;
+
+      const overlap = overlapToggle.checked;
+
+      if (overlap) {
+        const canvas = document.createElement("canvas");
+        container.appendChild(canvas);
+        const ctx = canvas.getContext("2d");
+
+        const datasets = Object.entries(charts).map(([name, chart]) => ({
+          label: name,
+          data: chart.data.map((p) => ({ x: p.index, y: p.value })),
+          borderColor: chart.color || "black",
+          borderWidth: 2,
+          fill: false,
+          tension: 0.1,
+        }));
+
+        const instance = new Chart(ctx, {
+          type: "line",
+          data: { datasets },
+          options: {
+            animation: false,
+            responsive: true,
+            parsing: false,
+            scales: {
+              x: { type: "linear", title: { display: true, text: "Index" } },
+              y: { beginAtZero: true, title: { display: true, text: "Value" } },
+            },
+          },
+        });
+
+        chartInstances.push(instance);
+      } else {
+        for (const [name, chart] of Object.entries(charts)) {
+          const canvas = document.createElement("canvas");
+          container.appendChild(canvas);
+          const ctx = canvas.getContext("2d");
+
+          const instance = new Chart(ctx, {
+            type: "line",
+            data: {
+              labels: chart.data.map((p) => p.index),
+              datasets: [
+                {
+                  label: chart.yAxis || name,
+                  data: chart.data.map((p) => p.value),
+                  borderColor: chart.color || "blue",
+                  borderWidth: 2,
+                  fill: false,
+                  tension: 0.1,
+                },
+              ],
+            },
+            options: {
+              animation: false,
+              responsive: true,
+              scales: {
+                x: {
+                  title: { display: true, text: chart.xAxis || "Index" },
+                },
+                y: {
+                  beginAtZero: true,
+                  title: { display: true, text: chart.yAxis || "Value" },
+                },
+              },
+            },
+          });
+
+          chart.instance = instance;
+          chartInstances.push(instance);
+        }
+      }
+    }
+
+    overlapToggle.addEventListener("change", () => renderCharts());
+
+    const ws = new WebSocket(`ws://${location.host}/ws`);
+
+    ws.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+
+      if (msg.type === "init") {
+        for (const [name, chartData] of Object.entries(msg.charts)) {
+          charts[name] = {
+            data: chartData.data,
+            color: chartData.color || "black",
+            xAxis: chartData.xAxis,
+            yAxis: chartData.yAxis,
+            instance: null,
+          };
+        }
+        renderCharts();
+      }
+
+      if (msg.type === "update") {
+        let shouldRender = false;
+
+        for (const [name, point] of Object.entries(msg.data)) {
+          if (!charts[name]) {
+            charts[name] = {
+              data: [],
+              color: "black",
+              xAxis: "Index",
+              yAxis: "Value",
+              instance: null,
+            };
+            shouldRender = true;
+          }
+
+          charts[name].data.push(point);
+          if (charts[name].data.length > maxPoints) {
+            charts[name].data.shift();
+          }
+        }
+
+        if (overlapToggle.checked) {
+          chartInstances.forEach((chart) => {
+            chart.data.datasets.forEach((dataset) => {
+              const name = dataset.label;
+              if (charts[name]) {
+                dataset.data = charts[name].data.map((p) => ({
+                  x: p.index,
+                  y: p.value,
+                }));
+              }
+            });
+            chart.update();
+          });
+        } else {
+          for (const [name, point] of Object.entries(msg.data)) {
+            const chart = charts[name];
+            if (chart?.instance) {
+              const c = chart.instance;
+              c.data.labels.push(point.index);
+              c.data.datasets[0].data.push(point.value);
+
+              if (c.data.labels.length > maxPoints) {
+                c.data.labels.shift();
+                c.data.datasets[0].data.shift();
+              }
+
+              c.update();
+            }
+          }
+        }
+
+        if (shouldRender) {
+          renderCharts();
+        }
+      }
+    };
+  </script>
+</body>
+</html>
