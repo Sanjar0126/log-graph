@@ -62,6 +62,6 @@ func main() {
 
 	go handler.HandleBroadcast()
 
-	fmt.Println("Server started at :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	fmt.Printf("Server started at :%d\n", cfg.Port)
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", cfg.Port), nil))
 }
