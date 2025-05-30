@@ -48,12 +48,11 @@ func main() {
 		log.Fatalf("Invalid config: %v", err)
 	}
 
-	
 	subFS, err := fs.Sub(content, "static")
 	if err != nil {
 		panic(err)
 	}
-	
+
 	handler := loggraph.NewWSHandler(patterns)
 
 	go handler.HandleInput()
