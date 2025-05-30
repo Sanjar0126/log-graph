@@ -2,28 +2,66 @@ package main
 
 import (
 	"embed"
+	"flag"
 	"fmt"
 	"io/fs"
 	"log"
 	loggraph "log-graph/log-graph"
 	"net/http"
+	"os"
+
+	"gopkg.in/yaml.v3"
 )
 
 //go:embed static/*
 var content embed.FS
 
-func main() {
-	go loggraph.HandleInput()
+var configPath string
 
+func init() {
+	flag.StringVar(&configPath, "config", "config.yaml", "Path to config file")
+}
+
+func loadConfig(path string) (*loggraph.Config, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var cfg loggraph.Config
+	err = yaml.Unmarshal(data, &cfg)
+	if err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
+func main() {
+	flag.Parse()
+
+	cfg, err := loadConfig(configPath)
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	patterns, err := loggraph.BuildPatterns(cfg)
+	if err != nil {
+		log.Fatalf("Invalid config: %v", err)
+	}
+
+	
 	subFS, err := fs.Sub(content, "static")
 	if err != nil {
 		panic(err)
 	}
+	
+	handler := loggraph.NewWSHandler(patterns)
 
-	http.HandleFunc("/ws", loggraph.HandleConnections)
+	go handler.HandleInput()
+
+	http.HandleFunc("/ws", handler.HandleConnections)
 	http.Handle("/", http.FileServer(http.FS(subFS)))
 
-	go loggraph.HandleBroadcast()
+	go handler.HandleBroadcast()
 
 	fmt.Println("Server started at :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))

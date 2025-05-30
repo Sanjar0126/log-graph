@@ -1,6 +1,9 @@
 package loggraph
 
-import "regexp"
+import (
+	"fmt"
+	"regexp"
+)
 
 type Pattern struct {
 	Name  string
@@ -10,19 +13,20 @@ type Pattern struct {
 	Color string
 }
 
-var patterns = []Pattern{
-	{
-		Name:  "query",
-		Regex: regexp.MustCompile(`\[query\]:\s*([\d.]+)s`),
-		XAxis: "Index",
-		YAxis: "Query Time (s)",
-		Color: "#ff6384",
-	},
-	{
-		Name:  "query2",
-		Regex: regexp.MustCompile(`\[query2\]:\s*([\d.]+)s`),
-		XAxis: "Index",
-		YAxis: "Query2 Time (s)",
-		Color: "#36a2eb",
-	},
+func BuildPatterns(cfg *Config) ([]Pattern, error) {
+	var patterns []Pattern
+	for _, c := range cfg.Charts {
+		re, err := regexp.Compile(c.Regex)
+		if err != nil {
+			return nil, fmt.Errorf("invalid regex for %s: %w", c.Name, err)
+		}
+		patterns = append(patterns, Pattern{
+			Name:  c.Name,
+			Regex: re,
+			XAxis: c.XAxis,
+			YAxis: c.YAxis,
+			Color: c.Color,
+		})
+	}
+	return patterns, nil
 }

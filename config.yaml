@@ -1,0 +1,12 @@
+charts:
+  - name: query
+    regex: "\\[query\\]:\\s*([\\d.]+)s"
+    x_axis: Index
+    y_axis: Query Time (s)
+    color: "#ff6384"
+
+  - name: query2
+    regex: "\\[query2\\]:\\s*([\\d.]+)s"
+    x_axis: Index
+    y_axis: Query2 Time (s)
+    color: "#36a2eb"
