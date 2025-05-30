@@ -9,5 +9,6 @@ type ChartConfig struct {
 }
 
 type Config struct {
+	Port   int           `yaml:"port"`
 	Charts []ChartConfig `yaml:"charts"`
 }
