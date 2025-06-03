@@ -24,7 +24,7 @@ def simulate_request():
 
     logger.info(f"Received request: path={path}, user={user}")
     
-    response_time = round(random.uniform(0.1, 2.0), 3)
+    response_time = round(random.uniform(0.1, 3.0), 3)
     time.sleep(response_time)
 
     if path == "/api/data" and random.random() < 0.1:

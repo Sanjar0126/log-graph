@@ -12,6 +12,8 @@ func (h *WSHandler) HandleInput() {
 		line := scanner.Text()
 		seriesData := make(map[string]QueryData)
 
+		Logger(INFO, line)
+
 		for _, pat := range h.patterns {
 			if match := pat.Regex.FindStringSubmatch(line); match != nil {
 				val, _ := strconv.ParseFloat(match[1], 64)
