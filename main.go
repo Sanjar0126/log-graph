@@ -62,6 +62,7 @@ func main() {
 
 	go handler.HandleBroadcast()
 
-	fmt.Printf("Server started at :%d\n", cfg.Port)
+	loggraph.Logger(loggraph.INFO, fmt.Sprintf("Server started at :%d\n", cfg.Port))
+
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", cfg.Port), nil))
 }
